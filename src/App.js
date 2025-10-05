@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AppProvider, useApp } from './context/AppContext';
 import Header from './components/Header';
 import Notification from './components/Notification';
+import ErrorBoundary from './components/ErrorBoundary';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -11,6 +12,7 @@ import Dashboard from './pages/Dashboard';
 import ModernDashboard from './pages/ModernDashboard';
 import Onboarding from './pages/Onboarding';
 import BugReport from './pages/BugReport';
+import SubmitReport from './pages/SubmitReport';
 import ReportDetails from './pages/ReportDetails';
 
 // Protected Route Component
@@ -71,6 +73,26 @@ const AppContent = () => {
         {/* Bug Report - public route for reporting bugs */}
         <Route path="/report/:companyId" element={<BugReport />} />
         
+        {/* Submit Report - protected route for submitting new reports */}
+        <Route 
+          path="/submit-report" 
+          element={
+            <ProtectedRoute>
+              <SubmitReport />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Submit Report to specific company - protected route */}
+        <Route 
+          path="/submit-report/:companyId" 
+          element={
+            <ProtectedRoute>
+              <SubmitReport />
+            </ProtectedRoute>
+          } 
+        />
+        
         {/* Report Details - protected route for viewing report details */}
         <Route 
           path="/report-details/:id" 
@@ -96,9 +118,11 @@ const AppContent = () => {
 const App = () => {
   return (
     <AppProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      <ErrorBoundary>
+        <Router>
+          <AppContent />
+        </Router>
+      </ErrorBoundary>
     </AppProvider>
   );
 };

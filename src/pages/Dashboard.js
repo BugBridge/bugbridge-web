@@ -211,7 +211,10 @@ const Dashboard = () => {
 
             <div className="grid md:grid-cols-3 gap-6">
               <div className="bg-slate-700/30 rounded-xl p-4">
-                <div className="text-2xl font-bold text-white mb-1">{state.companyProfile.bugReportsCount}</div>
+                <div className="text-2xl font-bold text-white mb-1">
+                  {Array.isArray(state.bugReports) ? 
+                    state.bugReports.filter(r => r.companyId === state.companyProfile?.id).length : 0}
+                </div>
                 <div className="text-sm text-slate-400">Reports Received</div>
               </div>
               <div className="bg-slate-700/30 rounded-xl p-4">

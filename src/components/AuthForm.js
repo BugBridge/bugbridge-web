@@ -35,7 +35,7 @@ const AuthForm = ({ mode = 'login' }) => {
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   
-  const { dispatch } = useApp();
+  const { login, signup, addNotification } = useApp();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -88,46 +88,57 @@ const AuthForm = ({ mode = 'login' }) => {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      let response;
+      
+      if (mode === 'login') {
+        response = await login(formData.email, formData.password);
+      } else {
+        // Signup
+        const userData = {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password
+        };
+        response = await signup(userData);
+      }
 
-      const mockUser = {
-        id: Date.now(),
-        name: mode === 'signup' ? `${formData.firstName} ${formData.lastName}` : 'John Doe',
-        email: formData.email,
-        username: formData.email.split('@')[0]
-      };
-
-      dispatch({
-        type: 'LOGIN',
-        payload: {
-          user: mockUser
-        }
-      });
-
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now(),
-          type: 'success',
-          title: mode === 'signup' ? 'Account Created!' : 'Welcome Back!',
-          message: mode === 'signup' 
-            ? `Welcome to BugBridge, ${mockUser.name}!`
-            : `Welcome back, ${mockUser.name}!`
-        }
+      addNotification({
+        type: 'success',
+        title: mode === 'signup' ? 'Account Created!' : 'Welcome Back!',
+        message: mode === 'signup' 
+          ? `Welcome to BugBridge, ${response.user.name}!`
+          : `Welcome back, ${response.user.name}!`
       });
 
       navigate('/dashboard');
     } catch (error) {
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now(),
+      // Handle different types of errors professionally
+      if (error.message.includes('Invalid credentials') || error.message.includes('401')) {
+        addNotification({
           type: 'error',
-          title: 'Authentication Failed',
-          message: 'Please check your credentials and try again.'
-        }
-      });
+          title: 'Invalid Credentials',
+          message: 'The email or password you entered is incorrect. Please try again.'
+        });
+      } else if (error.message.includes('404') || error.message.includes('Failed to fetch')) {
+        addNotification({
+          type: 'error',
+          title: 'Connection Error',
+          message: 'Unable to connect to the server. Please check your internet connection and try again.'
+        });
+      } else if (error.message.includes('Email already exists') || error.message.includes('409')) {
+        addNotification({
+          type: 'error',
+          title: 'Account Already Exists',
+          message: 'An account with this email address already exists. Please try logging in instead.'
+        });
+      } else {
+        addNotification({
+          type: 'error',
+          title: 'Authentication Error',
+          message: error.message || 'Something went wrong. Please try again.'
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +187,7 @@ const AuthForm = ({ mode = 'login' }) => {
                       value={formData.firstName}
                       onChange={handleChange}
                       placeholder="John"
-                      className={cn(errors.firstName && "border-red-500")}
+                      className=""
                     />
                     {errors.firstName && <FormError>{errors.firstName}</FormError>}
                   </LabelInputContainer>
@@ -189,7 +200,7 @@ const AuthForm = ({ mode = 'login' }) => {
                       value={formData.lastName}
                       onChange={handleChange}
                       placeholder="Doe"
-                      className={cn(errors.lastName && "border-red-500")}
+                      className=""
                     />
                     {errors.lastName && <FormError>{errors.lastName}</FormError>}
                   </LabelInputContainer>
@@ -207,7 +218,7 @@ const AuthForm = ({ mode = 'login' }) => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="john@example.com"
-                className={cn(errors.email && "border-red-500")}
+                className=""
               />
               {errors.email && <FormError>{errors.email}</FormError>}
             </LabelInputContainer>
@@ -221,7 +232,7 @@ const AuthForm = ({ mode = 'login' }) => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className={cn(errors.password && "border-red-500")}
+                className=""
               />
               {errors.password && <FormError>{errors.password}</FormError>}
             </LabelInputContainer>
@@ -236,7 +247,7 @@ const AuthForm = ({ mode = 'login' }) => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   placeholder="••••••••"
-                  className={cn(errors.confirmPassword && "border-red-500")}
+                  className=""
                 />
                 {errors.confirmPassword && <FormError>{errors.confirmPassword}</FormError>}
               </LabelInputContainer>

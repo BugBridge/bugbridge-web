@@ -3,11 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 
 const Header = () => {
-  const { state, dispatch } = useApp();
+  const { state, logout } = useApp();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    dispatch({ type: 'LOGOUT' });
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 

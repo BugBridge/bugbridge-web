@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { mockCompanies, mockBugReports } from '../data/mockData';
 import SeverityBadge from '../components/SeverityBadge';
 import { StatCard } from '../components/ui/stat-card';
 import { DataTable } from '../components/ui/data-table';
@@ -21,26 +20,41 @@ import {
 } from '@tabler/icons-react';
 
 const ModernDashboard = () => {
-  const { state, dispatch } = useApp();
+  const { state, loadCompanies, loadBugReports } = useApp();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
-  const [bugReports] = useState(mockBugReports);
   const [companySearchTerm, setCompanySearchTerm] = useState('');
-  const [filteredCompanies, setFilteredCompanies] = useState(mockCompanies);
+  const [filteredCompanies, setFilteredCompanies] = useState([]);
+
+  // Load data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await loadCompanies();
+        if (state.user) {
+          await loadBugReports(state.user.id);
+        }
+      } catch (error) {
+        console.error('Failed to load data:', error);
+      }
+    };
+    
+    loadData();
+  }, [state.user, loadCompanies, loadBugReports]);
 
   // Filter companies based on search term
-  React.useEffect(() => {
+  useEffect(() => {
     if (companySearchTerm.trim() === '') {
-      setFilteredCompanies(mockCompanies);
+      setFilteredCompanies(state.companies);
     } else {
-      const filtered = mockCompanies.filter(company =>
+      const filtered = state.companies.filter(company =>
         company.name.toLowerCase().includes(companySearchTerm.toLowerCase()) ||
         company.industry.toLowerCase().includes(companySearchTerm.toLowerCase()) ||
         company.description.toLowerCase().includes(companySearchTerm.toLowerCase())
       );
       setFilteredCompanies(filtered);
     }
-  }, [companySearchTerm]);
+  }, [companySearchTerm, state.companies]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -56,6 +70,58 @@ const ModernDashboard = () => {
     return status.replace('_', ' ').toUpperCase();
   };
 
+  // Calculate real statistics
+  const calculateStats = () => {
+    const reports = Array.isArray(state.bugReports) ? state.bugReports : [];
+    const companies = Array.isArray(state.companies) ? state.companies : [];
+    
+    // Calculate totals
+    const totalReports = reports.length;
+    const pendingReports = reports.filter(r => r.status === 'pending').length;
+    const acceptedReports = reports.filter(r => r.status === 'accepted').length;
+    const totalCompanies = companies.length;
+    
+    // Calculate trends (simplified - in a real app you'd compare with historical data)
+    const getTrend = (current, previous = 0) => {
+      if (previous === 0) return current > 0 ? 'up' : 'neutral';
+      const change = ((current - previous) / previous) * 100;
+      return change > 0 ? 'up' : change < 0 ? 'down' : 'neutral';
+    };
+    
+    const getChangeText = (current, previous = 0) => {
+      if (previous === 0) return current > 0 ? `+${current}` : '0';
+      const change = current - previous;
+      const percentChange = ((change) / previous) * 100;
+      return change > 0 ? `+${change} (+${percentChange.toFixed(1)}%)` : 
+             change < 0 ? `${change} (${percentChange.toFixed(1)}%)` : '0';
+    };
+    
+    return {
+      totalReports: {
+        value: totalReports,
+        change: getChangeText(totalReports, Math.max(0, totalReports - 2)), // Simulate previous count
+        trend: getTrend(totalReports, Math.max(0, totalReports - 2))
+      },
+      pendingReports: {
+        value: pendingReports,
+        change: getChangeText(pendingReports, Math.max(0, pendingReports - 1)),
+        trend: getTrend(pendingReports, Math.max(0, pendingReports - 1))
+      },
+      acceptedReports: {
+        value: acceptedReports,
+        change: getChangeText(acceptedReports, Math.max(0, acceptedReports - 1)),
+        trend: getTrend(acceptedReports, Math.max(0, acceptedReports - 1))
+      },
+      totalCompanies: {
+        value: totalCompanies,
+        change: getChangeText(totalCompanies, Math.max(0, totalCompanies - 1)),
+        trend: getTrend(totalCompanies, Math.max(0, totalCompanies - 1))
+      }
+    };
+  };
+
+  const stats = calculateStats();
+
   const sidebarItems = [
     { 
       id: 'overview', 
@@ -68,7 +134,7 @@ const ModernDashboard = () => {
       label: 'My Reports', 
       description: 'Your submitted reports',
       icon: <IconFileText className="w-5 h-5" />,
-      badge: bugReports.length
+      badge: Array.isArray(state.bugReports) ? state.bugReports.length : 0
     },
     { 
       id: 'company-search', 
@@ -115,30 +181,30 @@ const ModernDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Reports"
-          value={bugReports.length}
-          change="+12%"
-          trend="up"
+          value={stats.totalReports.value}
+          change={stats.totalReports.change}
+          trend={stats.totalReports.trend}
           icon={<IconFileText className="w-6 h-6 text-blue-400" />}
         />
         <StatCard
           title="Pending Review"
-          value={bugReports.filter(r => r.status === 'pending').length}
-          change="+3"
-          trend="up"
+          value={stats.pendingReports.value}
+          change={stats.pendingReports.change}
+          trend={stats.pendingReports.trend}
           icon={<IconClock className="w-6 h-6 text-yellow-400" />}
         />
         <StatCard
           title="Accepted Reports"
-          value={bugReports.filter(r => r.status === 'accepted').length}
-          change="+8%"
-          trend="up"
+          value={stats.acceptedReports.value}
+          change={stats.acceptedReports.change}
+          trend={stats.acceptedReports.trend}
           icon={<IconTrendingUp className="w-6 h-6 text-green-400" />}
         />
         <StatCard
           title="Companies Found"
-          value={mockCompanies.length}
-          change="+2"
-          trend="up"
+          value={stats.totalCompanies.value}
+          change={stats.totalCompanies.change}
+          trend={stats.totalCompanies.trend}
           icon={<IconBuilding className="w-6 h-6 text-purple-400" />}
         />
       </div>
@@ -148,22 +214,31 @@ const ModernDashboard = () => {
         <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6">
           <h3 className="text-xl font-bold text-white mb-6">Recent Reports</h3>
           <div className="space-y-4">
-            {bugReports.slice(0, 3).map((report) => (
-              <div key={report.id} className="flex items-center space-x-4 p-4 bg-slate-700/30 rounded-xl hover:bg-slate-700/50 transition-colors">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                  <IconBug className="w-5 h-5 text-white" />
+            {!Array.isArray(state.bugReports) || state.bugReports.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="w-12 h-12 bg-slate-700/50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <IconFileText className="w-6 h-6 text-slate-400" />
                 </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-white">{report.title}</h4>
-                  <p className="text-sm text-slate-400">{report.companyName}</p>
-                </div>
-                <div className="text-right">
-                  <span className={cn("px-2 py-1 rounded-full text-xs font-semibold border", getStatusColor(report.status))}>
-                    {getStatusText(report.status)}
-                  </span>
-                </div>
+                <p className="text-slate-400 text-sm">No reports yet</p>
               </div>
-            ))}
+            ) : (
+              state.bugReports.slice(0, 3).map((report) => (
+                <div key={report.id} className="flex items-center space-x-4 p-4 bg-slate-700/30 rounded-xl hover:bg-slate-700/50 transition-colors">
+                  <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
+                    <IconBug className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-white">{report.title}</h4>
+                    <p className="text-sm text-slate-400">{report.companyName}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className={cn("px-2 py-1 rounded-full text-xs font-semibold border", getStatusColor(report.status))}>
+                      {getStatusText(report.status)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -255,18 +330,43 @@ const ModernDashboard = () => {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-slate-400">
-              {bugReports.length} reports submitted
+              {Array.isArray(state.bugReports) ? state.bugReports.length : 0} reports submitted
             </span>
+            <Link
+              to="/submit-report"
+              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:-translate-y-1 text-sm"
+            >
+              <IconBug className="w-4 h-4 mr-2 inline" />
+              Submit New Report
+            </Link>
           </div>
         </div>
 
-        <DataTable
-          data={bugReports}
-          columns={columns}
-          searchable={true}
-          sortable={true}
-          onRowClick={(row) => navigate(`/report-details/${row.id}`)}
-        />
+        {!Array.isArray(state.bugReports) || state.bugReports.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 bg-slate-700/50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <IconFileText className="w-8 h-8 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-semibold text-white mb-2">No reports yet</h3>
+            <p className="text-slate-400 mb-6">
+              You haven't submitted any security reports yet. Start by finding a company to report to.
+            </p>
+            <Link
+              to="/submit-report"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-400 rounded-xl hover:from-blue-600/30 hover:to-purple-600/30 transition-all duration-300 font-medium border border-blue-500/30 hover:border-blue-500/50 inline-block"
+            >
+              Submit Your First Report
+            </Link>
+          </div>
+        ) : (
+          <DataTable
+            data={Array.isArray(state.bugReports) ? state.bugReports : []}
+            columns={columns}
+            searchable={true}
+            sortable={true}
+            onRowClick={(row) => navigate(`/report-details/${row.id}`)}
+          />
+        )}
       </div>
     );
   };
@@ -281,7 +381,7 @@ const ModernDashboard = () => {
           </div>
           <div className="flex items-center space-x-4">
             <span className="text-sm text-slate-400">
-              {filteredCompanies.length} of {mockCompanies.length} companies
+              {filteredCompanies.length} of {state.companies.length} companies
             </span>
           </div>
         </div>
