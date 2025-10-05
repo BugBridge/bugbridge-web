@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 
 const Onboarding = () => {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, createCompany, addNotification, loadCompanies } = useApp();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
@@ -26,6 +26,31 @@ const Onboarding = () => {
       additionalInfo: 'Any additional context, screenshots, or information...'
     }
   });
+
+  // Check if user already has a company
+  useEffect(() => {
+    const checkExistingCompany = async () => {
+      try {
+        await loadCompanies();
+        // Check if user owns any companies
+        const userCompanies = state.companies.filter(company => company.ownerId === state.user?.id);
+        if (userCompanies.length > 0) {
+          addNotification({
+            type: 'info',
+            title: 'Company Already Exists',
+            message: `You already have a company: ${userCompanies[0].name}. Redirecting to dashboard...`
+          });
+          navigate('/dashboard');
+        }
+      } catch (error) {
+        console.error('Failed to check existing companies:', error);
+      }
+    };
+
+    if (state.user && !state.isInitializing) {
+      checkExistingCompany();
+    }
+  }, [state.user, state.isInitializing, loadCompanies, addNotification, navigate, state.companies]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -59,38 +84,52 @@ const Onboarding = () => {
   const handleConfirmSubmit = async () => {
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      const companyProfile = {
-        id: Date.now(),
+    try {
+      // Prepare company data for API
+      const companyData = {
         name: formData.name,
         industry: formData.industry,
         website: formData.website,
         description: formData.description,
-        bugReportTemplate: formData.template,
-        isActive: true,
-        createdAt: new Date().toISOString().split('T')[0],
-        bugReportsCount: 0
+        bugReportTemplate: formData.template
       };
 
-      dispatch({
-        type: 'SET_COMPANY_PROFILE',
-        payload: companyProfile
-      });
+      // Call the real API to create company
+      const newCompany = await createCompany(companyData);
 
-      dispatch({
-        type: 'ADD_NOTIFICATION',
-        payload: {
-          id: Date.now(),
-          type: 'success',
-          title: 'Company Profile Created',
-          message: 'Your company profile has been set up successfully!'
-        }
+      // Add success notification
+      addNotification({
+        type: 'success',
+        title: 'Company Created Successfully!',
+        message: `${newCompany.name} has been created and saved to the database.`
       });
 
       setIsLoading(false);
       navigate('/dashboard');
-    }, 2000);
+    } catch (error) {
+      console.error('Company creation failed:', error);
+      
+      // Handle specific error cases
+      let errorMessage = 'Failed to create company. Please try again.';
+      let errorTitle = 'Company Creation Failed';
+      
+      if (error.message.includes('already has a company') || error.message.includes('User already has a company')) {
+        errorTitle = 'Company Already Exists';
+        errorMessage = 'You already have a company. Each user can only create one company.';
+      } else if (error.message.includes('Validation error')) {
+        errorTitle = 'Invalid Information';
+        errorMessage = 'Please check that all required fields are filled out correctly.';
+      }
+      
+      // Add error notification
+      addNotification({
+        type: 'error',
+        title: errorTitle,
+        message: errorMessage
+      });
+
+      setIsLoading(false);
+    }
   };
 
   const handleCancelConfirmation = () => {
