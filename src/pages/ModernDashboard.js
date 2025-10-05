@@ -336,65 +336,63 @@ const ModernDashboard = () => {
         <div className="grid gap-6">
           {filteredCompanies.length > 0 ? (
             filteredCompanies.map((company) => (
-              <div key={company.id} className="group bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 hover:border-blue-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10">
-                {/* Company Header */}
-                <div className="flex items-center space-x-6 mb-6">
-                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
-                    <span className="text-3xl font-bold text-white">{company.name.charAt(0)}</span>
+              <div key={company.id} className="group bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 hover:border-blue-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10">
+                {/* Company Header - Compact */}
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <span className="text-2xl font-bold text-white">{company.name.charAt(0)}</span>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-2xl font-bold text-white mb-2">{company.name}</h3>
-                    <p className="text-slate-400 text-lg mb-2">{company.industry}</p>
-                    <p className="text-slate-300 leading-relaxed">{company.description}</p>
+                    <h3 className="text-xl font-bold text-white mb-1">{company.name}</h3>
+                    <p className="text-slate-400 mb-2">{company.industry}</p>
+                    <p className="text-slate-300 text-sm leading-relaxed line-clamp-2">{company.description}</p>
                   </div>
                 </div>
 
-                {/* Stats Row */}
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center space-x-6">
+                {/* Stats and Action Row */}
+                <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+                  <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                       <span className="text-slate-400 text-sm">Active</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <IconFileText className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-400 text-sm">{company.bugReportsCount} reports received</span>
+                      <span className="text-slate-400 text-sm">{company.bugReportsCount} reports</span>
                     </div>
+                    <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-semibold border border-green-500/30 flex items-center space-x-1">
+                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                      <span>Accepting</span>
+                    </span>
                   </div>
-                  <span className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold border border-green-500/30 flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                    <span>Accepting Reports</span>
-                  </span>
-                </div>
-
-                {/* Action Section */}
-                <div className="flex items-center justify-center pt-4 border-t border-slate-700/50">
+                  
                   <Link
                     to={`/report/${company.id}`}
-                    className="group/btn relative inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:-translate-y-1 text-lg min-w-[200px]"
+                    className="group/btn relative inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:-translate-y-1 text-sm min-w-[160px]"
                   >
-                    <IconBug className="w-5 h-5 mr-3 group-hover/btn:scale-110 transition-transform duration-200" />
+                    <IconBug className="w-4 h-4 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />
                     <span>Submit Report</span>
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-0 group-hover/btn:opacity-75 transition-opacity duration-300"></div>
                   </Link>
                 </div>
-                {/* Footer Links */}
-                <div className="flex items-center justify-center space-x-6 text-sm text-slate-400 mt-4">
+
+                {/* Footer Links - Compact */}
+                <div className="flex items-center justify-center space-x-4 text-xs text-slate-400 mt-3">
                   {company.website && (
                     <a 
                       href={company.website} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors group/link"
+                      className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 transition-colors group/link"
                     >
-                      <svg className="w-4 h-4 group-hover/link:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-3 h-3 group-hover/link:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                       </svg>
-                      <span>Visit Website</span>
+                      <span>Website</span>
                     </a>
                   )}
-                  <div className="flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="flex items-center space-x-1">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
                     <span>Joined: {company.createdAt}</span>
