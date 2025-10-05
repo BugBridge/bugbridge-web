@@ -25,6 +25,22 @@ const ModernDashboard = () => {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
   const [bugReports] = useState(mockBugReports);
+  const [companySearchTerm, setCompanySearchTerm] = useState('');
+  const [filteredCompanies, setFilteredCompanies] = useState(mockCompanies);
+
+  // Filter companies based on search term
+  React.useEffect(() => {
+    if (companySearchTerm.trim() === '') {
+      setFilteredCompanies(mockCompanies);
+    } else {
+      const filtered = mockCompanies.filter(company =>
+        company.name.toLowerCase().includes(companySearchTerm.toLowerCase()) ||
+        company.industry.toLowerCase().includes(companySearchTerm.toLowerCase()) ||
+        company.description.toLowerCase().includes(companySearchTerm.toLowerCase())
+      );
+      setFilteredCompanies(filtered);
+    }
+  }, [companySearchTerm]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -81,7 +97,7 @@ const ModernDashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-3xl font-bold text-white mb-2">
-              Welcome back, {state.user?.name || 'User'}! 👋
+              Welcome back, {state.user?.name || 'User'}!
             </h2>
             <p className="text-slate-300 text-lg">
               Here's what's happening with your security reports today.
@@ -255,75 +271,163 @@ const ModernDashboard = () => {
     );
   };
 
-  const renderCompanySearch = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Find Companies</h2>
-          <p className="text-slate-400 mt-1">Discover companies accepting security reports</p>
+  const renderCompanySearch = () => {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white">Find Companies</h2>
+            <p className="text-slate-400 mt-1">Discover companies accepting security reports</p>
+          </div>
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-slate-400">
+              {filteredCompanies.length} of {mockCompanies.length} companies
+            </span>
+          </div>
         </div>
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-slate-400">
-            {mockCompanies.length} companies accepting reports
-          </span>
-        </div>
-      </div>
 
-      {/* Companies Grid */}
-      <div className="grid gap-6">
-        {mockCompanies.map((company) => (
-          <div key={company.id} className="group bg-slate-800/50 border border-slate-700/50 rounded-2xl p-6 hover:border-blue-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                  <span className="text-2xl font-bold text-white">{company.name.charAt(0)}</span>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">{company.name}</h3>
-                  <p className="text-slate-400">{company.industry} • {company.bugReportsCount} reports received</p>
-                  <p className="text-slate-300 mt-2">{company.description}</p>
-                </div>
-              </div>
-              <div className="flex flex-col items-end space-y-2">
-                <span className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold border border-green-500/30">
-                  Accepting Reports
-                </span>
-                <Link
-                  to={`/report/${company.id}`}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:-translate-y-1"
+        {/* Enhanced Search Bar */}
+        <div className="relative max-w-2xl mx-auto">
+          <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+            <IconSearch className="h-6 w-6 text-slate-400" />
+          </div>
+          <input
+            type="text"
+            placeholder="Search companies by name, industry, or description..."
+            value={companySearchTerm}
+            onChange={(e) => setCompanySearchTerm(e.target.value)}
+            className="w-full pl-16 pr-16 py-5 bg-slate-800/50 border border-slate-700 rounded-2xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg shadow-lg"
+          />
+          {companySearchTerm && (
+            <button
+              onClick={() => setCompanySearchTerm('')}
+              className="absolute inset-y-0 right-0 pr-6 flex items-center text-slate-400 hover:text-white transition-colors group"
+            >
+              <svg className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Search Results Info */}
+        {companySearchTerm && (
+          <div className="text-center">
+            <div className="inline-flex items-center space-x-4 bg-slate-800/30 border border-slate-700/50 rounded-xl px-6 py-3">
+              <p className="text-slate-300 text-sm font-medium">
+                {filteredCompanies.length === 0 
+                  ? 'No companies found matching your search'
+                  : `Found ${filteredCompanies.length} compan${filteredCompanies.length === 1 ? 'y' : 'ies'} matching "${companySearchTerm}"`
+                }
+              </p>
+              {filteredCompanies.length > 0 && (
+                <button
+                  onClick={() => setCompanySearchTerm('')}
+                  className="text-blue-400 hover:text-blue-300 text-sm font-medium transition-colors hover:underline"
                 >
-                  Submit Report
-                </Link>
-              </div>
-            </div>
-            <div className="flex items-center justify-between text-sm text-slate-400">
-              <div className="flex items-center space-x-4">
-                {company.website && (
-                  <a 
-                    href={company.website} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center space-x-1 text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    <span>Visit Website</span>
-                  </a>
-                )}
-                <span className="flex items-center space-x-1">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <span>Joined: {company.createdAt}</span>
-                </span>
-              </div>
+                  Clear search
+                </button>
+              )}
             </div>
           </div>
-        ))}
+        )}
+
+        {/* Companies Grid */}
+        <div className="grid gap-6">
+          {filteredCompanies.length > 0 ? (
+            filteredCompanies.map((company) => (
+              <div key={company.id} className="group bg-slate-800/50 border border-slate-700/50 rounded-2xl p-8 hover:border-blue-500/30 transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10">
+                {/* Company Header */}
+                <div className="flex items-center space-x-6 mb-6">
+                  <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-lg">
+                    <span className="text-3xl font-bold text-white">{company.name.charAt(0)}</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-2xl font-bold text-white mb-2">{company.name}</h3>
+                    <p className="text-slate-400 text-lg mb-2">{company.industry}</p>
+                    <p className="text-slate-300 leading-relaxed">{company.description}</p>
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-6">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                      <span className="text-slate-400 text-sm">Active</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <IconFileText className="w-4 h-4 text-slate-400" />
+                      <span className="text-slate-400 text-sm">{company.bugReportsCount} reports received</span>
+                    </div>
+                  </div>
+                  <span className="px-4 py-2 bg-green-500/20 text-green-400 rounded-full text-sm font-semibold border border-green-500/30 flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span>Accepting Reports</span>
+                  </span>
+                </div>
+
+                {/* Action Section */}
+                <div className="flex items-center justify-center pt-4 border-t border-slate-700/50">
+                  <Link
+                    to={`/report/${company.id}`}
+                    className="group/btn relative inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:-translate-y-1 text-lg min-w-[200px]"
+                  >
+                    <IconBug className="w-5 h-5 mr-3 group-hover/btn:scale-110 transition-transform duration-200" />
+                    <span>Submit Report</span>
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-0 group-hover/btn:opacity-75 transition-opacity duration-300"></div>
+                  </Link>
+                </div>
+                {/* Footer Links */}
+                <div className="flex items-center justify-center space-x-6 text-sm text-slate-400 mt-4">
+                  {company.website && (
+                    <a 
+                      href={company.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-2 text-blue-400 hover:text-blue-300 transition-colors group/link"
+                    >
+                      <svg className="w-4 h-4 group-hover/link:scale-110 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                      <span>Visit Website</span>
+                    </a>
+                  )}
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Joined: {company.createdAt}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-16">
+              <div className="w-24 h-24 bg-gradient-to-r from-slate-700/50 to-slate-600/50 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <IconSearch className="w-12 h-12 text-slate-400" />
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-3">No companies found</h3>
+              <p className="text-slate-400 mb-8 max-w-md mx-auto leading-relaxed">
+                {companySearchTerm 
+                  ? `No companies match your search for "${companySearchTerm}". Try different keywords or browse all companies.`
+                  : 'No companies are currently accepting reports. Check back later for new opportunities.'
+                }
+              </p>
+              {companySearchTerm && (
+                <button
+                  onClick={() => setCompanySearchTerm('')}
+                  className="px-8 py-4 bg-gradient-to-r from-blue-600/20 to-purple-600/20 text-blue-400 rounded-xl hover:from-blue-600/30 hover:to-purple-600/30 transition-all duration-300 font-medium border border-blue-500/30 hover:border-blue-500/50 transform hover:-translate-y-1"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderCompanyManagement = () => {
     if (state.companyProfile) {
