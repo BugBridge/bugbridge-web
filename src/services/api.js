@@ -4,10 +4,22 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api
 class ApiService {
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.requestCache = new Map(); // Simple request cache to prevent duplicate requests
+    this.activeRequests = new Map(); // Track active requests to prevent duplicates
+    this.lastRequestTime = 0; // Track last request time for throttling
+    this.minRequestInterval = 50; // Minimum 50ms between requests
   }
 
   // Generic request method
   async request(endpoint, options = {}) {
+    // Throttle requests to prevent overwhelming the server
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.minRequestInterval) {
+      await new Promise(resolve => setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest));
+    }
+    this.lastRequestTime = Date.now();
+
     const url = `${this.baseURL}${endpoint}`;
     const config = {
       headers: {
@@ -23,6 +35,39 @@ class ApiService {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Simple debouncing for GET requests to prevent rapid-fire requests
+    const isGetRequest = !options.method || options.method === 'GET';
+    const cacheKey = `${url}_${JSON.stringify(config.headers)}`;
+    
+    // Check if the same request is already in progress
+    if (this.activeRequests.has(cacheKey)) {
+      return this.activeRequests.get(cacheKey);
+    }
+    
+    if (isGetRequest && this.requestCache.has(cacheKey)) {
+      const cachedRequest = this.requestCache.get(cacheKey);
+      const now = Date.now();
+      
+      // If the same request was made within the last 100ms, return the cached promise
+      if (now - cachedRequest.timestamp < 100) {
+        return cachedRequest.promise;
+      }
+    }
+
+    // Create the request promise and track it
+    const requestPromise = this.makeRequest(url, config, isGetRequest, cacheKey);
+    this.activeRequests.set(cacheKey, requestPromise);
+    
+    try {
+      const result = await requestPromise;
+      return result;
+    } finally {
+      // Clean up the active request
+      this.activeRequests.delete(cacheKey);
+    }
+  }
+
+  async makeRequest(url, config, isGetRequest, cacheKey) {
     try {
       const response = await fetch(url, config);
       
@@ -34,7 +79,8 @@ class ApiService {
         const useMockData = process.env.REACT_APP_USE_MOCK_DATA === 'true';
         if (useMockData && (response.status === 404 || response.status >= 500)) {
           console.warn('Backend not available, using mock data for development');
-          return this.getMockData(endpoint, options);
+          const endpoint = url.replace(this.baseURL, '');
+          return this.getMockData(endpoint, config);
         }
         throw new Error(`Server error: ${response.status} ${response.statusText}`);
       }
@@ -45,6 +91,22 @@ class ApiService {
         throw new Error(data.message || `HTTP error! status: ${response.status}`);
       }
 
+      // Cache successful GET requests
+      if (isGetRequest) {
+        this.requestCache.set(cacheKey, {
+          promise: Promise.resolve(data),
+          timestamp: Date.now()
+        });
+        
+        // Clean up old cache entries (older than 1 minute)
+        const now = Date.now();
+        for (const [key, value] of this.requestCache.entries()) {
+          if (now - value.timestamp > 60000) {
+            this.requestCache.delete(key);
+          }
+        }
+      }
+
       return data;
     } catch (error) {
       console.error('API request failed:', error);
@@ -52,7 +114,8 @@ class ApiService {
       const useMockData = process.env.REACT_APP_USE_MOCK_DATA === 'true';
       if (useMockData && (error.message.includes('404') || error.message.includes('Failed to fetch') || error.message.includes('Server error'))) {
         console.warn('Backend not available, using mock data for development');
-        return this.getMockData(endpoint, options);
+        const endpoint = url.replace(this.baseURL, '');
+        return this.getMockData(endpoint, config);
       }
       throw error;
     }
@@ -265,7 +328,7 @@ class ApiService {
 
   // Bug report endpoints
   async getBugReports(userId = null) {
-    const endpoint = userId ? `/bug-reports?userId=${userId}` : '/bug-reports';
+    const endpoint = userId ? `/users/${userId}/reports` : '/bug-reports';
     return this.request(endpoint);
   }
 

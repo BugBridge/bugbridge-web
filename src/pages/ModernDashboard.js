@@ -30,8 +30,11 @@ const ModernDashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await loadCompanies();
-        if (state.user) {
+        // Only load companies if not already loaded
+        if (state.companies.length === 0 && !state.loading) {
+          await loadCompanies();
+        }
+        if (state.user && state.bugReports.length === 0 && !state.loading) {
           await loadBugReports(state.user.id);
         }
       } catch (error) {
@@ -40,7 +43,7 @@ const ModernDashboard = () => {
     };
     
     loadData();
-  }, [state.user, loadCompanies, loadBugReports]);
+  }, [state.user?.id]); // Only depend on user ID, not the functions
 
   // Filter companies based on search term
   useEffect(() => {
@@ -467,7 +470,7 @@ const ModernDashboard = () => {
                   </div>
                   
                   <Link
-                    to={`/report/${company.id}`}
+                    to={`/submit-report/${company.id}`}
                     className="group/btn relative inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-blue-500/25 transform hover:-translate-y-1 text-sm min-w-[160px]"
                   >
                     <IconBug className="w-4 h-4 mr-2 group-hover/btn:scale-110 transition-transform duration-200" />

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { mockBugReports } from '../data/mockData';
 import SeverityBadge from '../components/SeverityBadge';
 
 const ReportDetails = () => {
@@ -14,41 +13,62 @@ const ReportDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Find the report by ID
-    const foundReport = mockBugReports.find(r => r.id === parseInt(id));
-    
-    if (foundReport) {
-      setReport(foundReport);
-      // Mock comments data
-      setComments([
-        {
-          id: 1,
-          author: 'Security Team',
-          authorType: 'company',
-          content: 'Thank you for submitting this report. We are currently reviewing the vulnerability and will provide updates soon.',
-          timestamp: '2024-01-15 10:30 AM',
-          isInternal: false
-        },
-        {
-          id: 2,
-          author: state.user?.name || 'You',
-          authorType: 'user',
-          content: 'I can provide additional details about the reproduction steps if needed.',
-          timestamp: '2024-01-15 11:45 AM',
-          isInternal: false
-        },
-        {
-          id: 3,
-          author: 'Security Team',
-          authorType: 'company',
-          content: 'We have reproduced the issue and are working on a fix. Expected resolution within 48 hours.',
-          timestamp: '2024-01-15 2:15 PM',
-          isInternal: false
+    const loadReportDetails = async () => {
+      try {
+        setIsLoading(true);
+        
+        // First try to find the report in the current state
+        let foundReport = Array.isArray(state.bugReports) ? 
+          state.bugReports.find(r => r.id === id) : null;
+        
+        // If not found in state, try to fetch from API
+        if (!foundReport) {
+          try {
+            // Import apiService dynamically to avoid circular imports
+            const { default: apiService } = await import('../services/api');
+            foundReport = await apiService.getBugReport(id);
+          } catch (apiError) {
+            console.error('Failed to fetch report from API:', apiError);
+            foundReport = null;
+          }
         }
-      ]);
-    }
-    setIsLoading(false);
-  }, [id, state.user]);
+        
+        if (foundReport) {
+          setReport(foundReport);
+          
+          // Mock comments data for now (in a real app, you'd fetch from API)
+          setComments([
+            {
+              id: 1,
+              author: 'Security Team',
+              authorType: 'company',
+              content: 'Thank you for submitting this report. We are currently reviewing the vulnerability and will provide updates soon.',
+              timestamp: new Date().toLocaleString(),
+              isInternal: false
+            },
+            {
+              id: 2,
+              author: state.user?.name || 'You',
+              authorType: 'user',
+              content: 'I can provide additional details about the reproduction steps if needed.',
+              timestamp: new Date().toLocaleString(),
+              isInternal: false
+            }
+          ]);
+        } else {
+          // Report not found
+          setReport(null);
+        }
+      } catch (error) {
+        console.error('Failed to load report details:', error);
+        setReport(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadReportDetails();
+  }, [id, state.user, state.bugReports]);
 
   const handleSubmitComment = (e) => {
     e.preventDefault();
@@ -94,6 +114,25 @@ const ReportDetails = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
         <div className="text-center text-white">
           <h2 className="text-2xl font-bold mb-4">Report Not Found</h2>
+          <p className="text-slate-400 mb-6">The report you're looking for doesn't exist or has been removed.</p>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="btn-primary"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Additional safety check for report object structure
+  if (typeof report !== 'object' || report === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center text-white">
+          <h2 className="text-2xl font-bold mb-4">Invalid Report Data</h2>
+          <p className="text-slate-400 mb-6">The report data is corrupted or invalid.</p>
           <button
             onClick={() => navigate('/dashboard')}
             className="btn-primary"
@@ -119,13 +158,13 @@ const ReportDetails = () => {
             </svg>
             Back to Dashboard
           </button>
-          <h1 className="text-3xl font-bold text-white mb-2">{report.title}</h1>
+          <h1 className="text-3xl font-bold text-white mb-2">{report.title || 'Untitled Report'}</h1>
           <div className="flex items-center space-x-4">
-            <SeverityBadge severity={report.severity} />
-            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(report.status)}`}>
-              {getStatusText(report.status)}
+            <SeverityBadge severity={report.severity || 'medium'} />
+            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(report.status || 'pending')}`}>
+              {getStatusText(report.status || 'pending')}
             </span>
-            <span className="text-slate-400">Submitted: {report.submittedAt}</span>
+            <span className="text-slate-400">Submitted: {report.submittedAt || 'Unknown'}</span>
           </div>
         </div>
 
@@ -138,27 +177,24 @@ const ReportDetails = () => {
               <div className="space-y-4">
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-2">Description</h3>
-                  <p className="text-slate-300 leading-relaxed">{report.description}</p>
+                  <p className="text-slate-300 leading-relaxed">{report.description || 'No description provided'}</p>
                 </div>
                 
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Steps to Reproduce</h3>
-                  <div className="bg-slate-700/30 rounded-lg p-4">
-                    <ol className="list-decimal list-inside space-y-2 text-slate-300">
-                      <li>Navigate to the login page</li>
-                      <li>Enter invalid credentials</li>
-                      <li>Observe the error message</li>
-                      <li>Check the browser console for sensitive information</li>
-                    </ol>
+                {report.stepsToReproduce && (
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Steps to Reproduce</h3>
+                    <div className="bg-slate-700/30 rounded-lg p-4">
+                      <p className="text-slate-300 whitespace-pre-wrap">{report.stepsToReproduce}</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 <div>
                   <h3 className="text-lg font-semibold text-white mb-2">Impact</h3>
                   <p className="text-slate-300">This vulnerability could expose sensitive system information to attackers, potentially leading to further exploitation.</p>
                 </div>
 
-                {report.attachments.length > 0 && (
+                {report.attachments && report.attachments.length > 0 && (
                   <div>
                     <h3 className="text-lg font-semibold text-white mb-2">Attachments</h3>
                     <div className="space-y-2">
@@ -246,27 +282,27 @@ const ReportDetails = () => {
               <div className="space-y-3">
                 <div>
                   <span className="text-slate-400 text-sm">Report ID</span>
-                  <p className="text-white font-mono">#{report.id}</p>
+                  <p className="text-white font-mono">#{report.id || 'Unknown'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-sm">Company</span>
-                  <p className="text-white">{report.companyName}</p>
+                  <p className="text-white">{report.companyName || 'Unknown Company'}</p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-sm">Severity</span>
                   <div className="mt-1">
-                    <SeverityBadge severity={report.severity} />
+                    <SeverityBadge severity={report.severity || 'medium'} />
                   </div>
                 </div>
                 <div>
                   <span className="text-slate-400 text-sm">Status</span>
-                  <p className={`font-semibold ${getStatusColor(report.status)}`}>
-                    {getStatusText(report.status)}
+                  <p className={`font-semibold ${getStatusColor(report.status || 'pending')}`}>
+                    {getStatusText(report.status || 'pending')}
                   </p>
                 </div>
                 <div>
                   <span className="text-slate-400 text-sm">Submitted</span>
-                  <p className="text-white">{report.submittedAt}</p>
+                  <p className="text-white">{report.submittedAt || 'Unknown'}</p>
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 import apiService from '../services/api';
 
 const AppContext = createContext();
@@ -10,7 +10,8 @@ const initialState = {
   notifications: [],
   companies: [],
   loading: false,
-  error: null
+  error: null,
+  isInitializing: true // Track if we're still checking for existing auth
 };
 
 function appReducer(state, action) {
@@ -21,7 +22,8 @@ function appReducer(state, action) {
         user: action.payload.user,
         companyProfile: action.payload.companyProfile || null,
         loading: false,
-        error: null
+        error: null,
+        isInitializing: false
       };
     case 'LOGOUT':
       return {
@@ -31,7 +33,8 @@ function appReducer(state, action) {
         bugReports: [],
         companies: [],
         loading: false,
-        error: null
+        error: null,
+        isInitializing: false
       };
     case 'SET_LOADING':
       return {
@@ -83,6 +86,12 @@ function appReducer(state, action) {
         ...state,
         notifications: state.notifications.filter(n => n.id !== action.payload)
       };
+    case 'INITIALIZATION_COMPLETE':
+      return {
+        ...state,
+        isInitializing: false
+      };
+
     default:
       return state;
   }
@@ -90,6 +99,7 @@ function appReducer(state, action) {
 
 export function AppProvider({ children }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const loadingRef = useRef(false);
 
   // Check for existing auth token on app load
   useEffect(() => {
@@ -100,6 +110,7 @@ export function AppProvider({ children }) {
       if (!useMockData && token.includes('mock-jwt-token')) {
         // Skip auto-login for mock tokens when not in mock mode
         localStorage.removeItem('authToken');
+        dispatch({ type: 'INITIALIZATION_COMPLETE' });
         return;
       }
       
@@ -117,7 +128,11 @@ export function AppProvider({ children }) {
         .catch(error => {
           console.error('Token verification failed:', error);
           localStorage.removeItem('authToken');
+          dispatch({ type: 'INITIALIZATION_COMPLETE' });
         });
+    } else {
+      // No token found, initialization complete
+      dispatch({ type: 'INITIALIZATION_COMPLETE' });
     }
   }, []);
 
@@ -181,8 +196,15 @@ export function AppProvider({ children }) {
     }
   };
 
-  const loadCompanies = async () => {
+  const loadCompanies = useCallback(async () => {
+    // Prevent multiple simultaneous requests
+    if (loadingRef.current) {
+      return state.companies;
+    }
+    
     try {
+      loadingRef.current = true;
+      dispatch({ type: 'SET_LOADING', payload: true });
       const companies = await apiService.getCompanies();
       // Ensure companies is always an array
       const safeCompanies = Array.isArray(companies) ? companies : [];
@@ -194,11 +216,21 @@ export function AppProvider({ children }) {
       // Set empty array on error to prevent filter issues
       dispatch({ type: 'SET_COMPANIES', payload: [] });
       throw error;
+    } finally {
+      loadingRef.current = false;
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
-  };
+  }, [dispatch]);
 
-  const loadBugReports = async (userId = null) => {
+  const loadBugReports = useCallback(async (userId = null) => {
+    // Prevent multiple simultaneous requests for the same user
+    const cacheKey = `bugReports_${userId || 'all'}`;
+    if (loadingRef.current) {
+      return state.bugReports;
+    }
+    
     try {
+      loadingRef.current = true;
       const reports = await apiService.getBugReports(userId);
       // Ensure reports is always an array
       const safeReports = Array.isArray(reports) ? reports : [];
@@ -210,10 +242,12 @@ export function AppProvider({ children }) {
       // Set empty array on error to prevent filter issues
       dispatch({ type: 'SET_BUG_REPORTS', payload: [] });
       throw error;
+    } finally {
+      loadingRef.current = false;
     }
-  };
+  }, [dispatch]);
 
-  const createBugReport = async (reportData) => {
+  const createBugReport = useCallback(async (reportData) => {
     try {
       const newReport = await apiService.createBugReport(reportData);
       dispatch({ type: 'ADD_BUG_REPORT', payload: newReport });
@@ -222,9 +256,9 @@ export function AppProvider({ children }) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
-  };
+  }, [dispatch]);
 
-  const createCompany = async (companyData) => {
+  const createCompany = useCallback(async (companyData) => {
     try {
       const newCompany = await apiService.createCompany(companyData);
       dispatch({ type: 'SET_COMPANY_PROFILE', payload: newCompany });
@@ -233,7 +267,7 @@ export function AppProvider({ children }) {
       dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
-  };
+  }, [dispatch]);
 
   const addNotification = (notification) => {
     const id = Date.now();

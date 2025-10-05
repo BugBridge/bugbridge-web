@@ -27,12 +27,9 @@ const SubmitReport = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        await loadCompanies();
-        if (companyId) {
-          const company = state.companies.find(c => c.id === companyId);
-          if (company) {
-            setSelectedCompany(company);
-          }
+        // Only load companies if not already loaded
+        if (state.companies.length === 0 && !state.loading) {
+          await loadCompanies();
         }
       } catch (error) {
         console.error('Failed to load companies:', error);
@@ -48,7 +45,19 @@ const SubmitReport = () => {
     };
     
     loadData();
-  }, [companyId, loadCompanies, state.companies, addNotification]);
+  }, []); // Only run once on mount
+
+  // Handle company selection when companyId changes or companies are loaded
+  useEffect(() => {
+    if (companyId && state.companies.length > 0) {
+      const company = state.companies.find(c => c.id === companyId);
+      if (company) {
+        setSelectedCompany(company);
+        setFormData(prev => ({ ...prev, companyId: company.id }));
+        setStep(2);
+      }
+    }
+  }, [companyId, state.companies]);
 
   const handleCompanySelect = (company) => {
     setSelectedCompany(company);
@@ -103,10 +112,12 @@ const SubmitReport = () => {
 
     try {
       const reportData = {
-        ...formData,
-        userId: state.user.id,
-        companyName: selectedCompany.name,
-        status: 'pending'
+        companyId: formData.companyId,
+        title: formData.title,
+        description: formData.description,
+        severity: formData.severity,
+        stepsToReproduce: formData.stepsToReproduce,
+        isAnonymous: false
       };
 
       await createBugReport(reportData);

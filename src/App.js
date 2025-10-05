@@ -19,6 +19,15 @@ import ReportDetails from './pages/ReportDetails';
 const ProtectedRoute = ({ children, requireCompanyProfile = false }) => {
   const { state } = useApp();
   
+  // Show loading while checking authentication
+  if (state.isInitializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
+  
   if (!state.user) {
     return <Navigate to="/login" replace />;
   }
@@ -34,6 +43,15 @@ const ProtectedRoute = ({ children, requireCompanyProfile = false }) => {
 // Dashboard Route Component - allows access without company profile
 const DashboardRoute = () => {
   const { state } = useApp();
+  
+  // Show loading while checking authentication
+  if (state.isInitializing) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
   
   if (!state.user) {
     return <Navigate to="/login" replace />;
